@@ -154,6 +154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     select.addEventListener('change', syncSelect);
     select.form?.addEventListener('reset', () => window.setTimeout(syncSelect));
+    window.addEventListener('havencrest:languagechange', syncSelect);
     syncSelect();
   });
   document.addEventListener('click', () => closePremiumSelects());

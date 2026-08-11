@@ -1,5 +1,4 @@
 (() => {
-  const STORAGE_KEY = 'havencrest-language';
   const canonical = (value) => value
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u2013\u2014]/g, '-')
@@ -315,7 +314,35 @@
     document.title = parts.length > 1 ? `${page} – هافنكريست للعقارات` : 'هافنكريست للعقارات';
   };
 
-  const applyLanguage = (language, persist = true) => {
+  const syncLanguageNavigation = (language) => {
+    document.querySelectorAll('a[href]').forEach((link) => {
+      const source = link.getAttribute('href');
+      if (!source || source.startsWith('#') || /^(mailto:|tel:|javascript:)/i.test(source)) return;
+      let url;
+      try { url = new URL(source, window.location.href); } catch (error) { return; }
+      if (url.origin !== window.location.origin) return;
+      if (language === 'ar') url.searchParams.set('lang', 'ar');
+      else url.searchParams.delete('lang');
+      link.setAttribute('href', `${url.pathname}${url.search}${url.hash}`);
+    });
+
+    document.querySelectorAll('form').forEach((form) => {
+      if ((form.getAttribute('method') || 'get').toLowerCase() !== 'get') return;
+      let languageInput = form.querySelector('input[data-language-query]');
+      if (language === 'ar' && !languageInput) {
+        languageInput = document.createElement('input');
+        languageInput.type = 'hidden';
+        languageInput.name = 'lang';
+        languageInput.value = 'ar';
+        languageInput.dataset.languageQuery = '';
+        form.appendChild(languageInput);
+      } else if (language !== 'ar') {
+        languageInput?.remove();
+      }
+    });
+  };
+
+  const applyLanguage = (language) => {
     activeLanguage = language === 'ar' ? 'ar' : 'en';
     document.documentElement.lang = activeLanguage;
     document.documentElement.dir = activeLanguage === 'ar' ? 'rtl' : 'ltr';
@@ -327,21 +354,17 @@
       button.setAttribute('aria-pressed', String(selected));
       button.classList.toggle('is-active', selected);
     });
-    if (persist) {
-      try { localStorage.setItem(STORAGE_KEY, activeLanguage); } catch (error) {}
-      const url = new URL(window.location.href);
-      if (activeLanguage === 'ar') url.searchParams.set('lang', 'ar');
-      else url.searchParams.delete('lang');
-      window.history.replaceState({}, '', url);
-    }
+    syncLanguageNavigation(activeLanguage);
+    const url = new URL(window.location.href);
+    if (activeLanguage === 'ar') url.searchParams.set('lang', 'ar');
+    else url.searchParams.delete('lang');
+    window.history.replaceState({}, '', url);
     window.dispatchEvent(new CustomEvent('havencrest:languagechange', { detail: { language: activeLanguage } }));
   };
 
   const initialize = () => {
-    let stored = 'en';
-    try { stored = localStorage.getItem(STORAGE_KEY) || 'en'; } catch (error) {}
     const requested = new URLSearchParams(window.location.search).get('lang');
-    applyLanguage(requested === 'ar' ? 'ar' : stored === 'ar' ? 'ar' : 'en', Boolean(requested));
+    applyLanguage(requested === 'ar' ? 'ar' : 'en');
     document.addEventListener('click', (event) => {
       const button = event.target.closest('[data-language]');
       if (button) applyLanguage(button.dataset.language);
